@@ -1,0 +1,241 @@
+---
+title: "SDS 315 HW 9"
+author: "Ananya Loke - UT EID: asl3324"
+date: "2025-04-20"
+output: 
+  pdf_document:
+    latex_engine: xelatex
+    includes:
+      toc: true
+---
+
+
+Click [here](https://github.com/ananyaloke/SDS-315-HW-8) for the Github link to the code!
+
+
+```{r global_options, echo=FALSE}
+knitr::opts_chunk$set(fig.height=6, fig.width=8, warning=FALSE, message = FALSE, tidy=TRUE, echo=FALSE, tidy.opts=list(width.cutoff=60))
+```
+
+
+```{r, echo = FALSE, include=FALSE}
+#loading libraries
+library(tidyverse)
+library(lubridate)
+library(kableExtra)
+library(rvest)
+library(RColorBrewer)
+library(mosaic)
+library(boot)
+library(moderndive)
+
+
+#reading in datasets
+solder = read_csv("solder.csv")
+groceries = read_csv("groceries.csv")
+
+
+
+```
+
+
+# **Problem 1: Manufacturing flaws in circuit boards**
+
+### Part A: Plots
+
+```{r}
+ggplot(solder, aes(x = Opening, y = skips)) +
+  geom_boxplot(fill = "lightpink") +
+  labs(
+    title = "Relationship Between Solder Gun Opening Size and Number of Skips",
+    x = "Opening Size",
+    y = "Number of Skips",
+  ) +
+  theme_minimal()
+```
+The plot above shows the relationship between solder gun opening size and number of skips. We can see that boards soldered with smaller openings tend to have fewer skips compared to medium and large openings, suggesting that smaller openings may result in more precise soldering.
+
+
+
+
+```{r}
+ggplot(solder, aes(x = Solder, y = skips)) +
+  geom_boxplot(fill = "violet") +
+  labs(
+    title = "Relationship Between Solder Alloy Thickness and Number of Skips",
+    x = "Solder Thickness",
+    y = "Number of Skips",
+  ) +
+  theme_minimal()
+
+```
+
+The plot above shows the relationship between solder alloy thickness and number of skips. Based on the visual, we can see that boards soldered with thin alloy generally show fewer skips than those with thick alloy, indicating that thinner solder may improve quality."
+
+
+### Part B: Regression Model
+
+```{r}
+
+lm_solder = lm(skips ~ Opening + Solder + Opening:Solder, data = solder)
+get_regression_table(lm_solder, conf.level = 0.95, digits = 2)
+
+```
+
+
+### Part C: Coefficient Interpretations
+
+- **Intercept (0.39):**  
+  When the opening is **Large** and the solder is **Thick**, the predicted number of skips is 0.39. This is the baseline condition in the model.
+
+- **Opening: M (2.41):**  
+  When using a **Medium** opening instead of a Large one (with Thick solder), the number of skips increases by 2.41 on average.
+
+- **Opening: S (5.13):**  
+  When using a **Small** opening instead of a Large one (with Thick solder), the number of skips increases by 5.13 on average.
+
+- **Solder: Thin (2.28):**  
+  When switching from Thick to **Thin** solder (with a Large opening), the number of skips increases by 2.28 on average.
+
+- **Opening: M:SolderThin (–0.74):**  
+  For Medium openings with Thin solder, the number of skips is 0.74 lower than expected based on the sum of the individual effects. However, this interaction is not statistically significant, so the true effect may be negligible.
+
+- **Opening: S:SolderThin (9.65):**  
+  For Small openings with Thin solder, the number of skips is 9.65 higher than expected based on the main effects alone. This suggests a strong interaction, where combining these two factors leads to significantly more defects.
+
+
+
+### Part D: Coefficient Interpretations
+After creating and analysing the regression model, the combination of a large solder gun opening and thick solder results in the lowest predicted number of skips (0.39), making it the most reliable option. Smaller openings and thin solder each increase the number of skips, and the combination of small opening with thin solder leads to the highest predicted number of skips (17.45), due to a strong positive interaction effect. Based on all of this information, I would recommend that the use of large openings with thick solder for manufacturing to minimize soldering defects and improve quality
+
+
+
+
+
+# **Problem 2: Modeling Disease Growth**
+
+
+### Part A: Differences Across Different Stores
+
+```{r}
+
+wran_groceries = group_by(groceries, Store)
+wran_groceries = summarise(wran_groceries, mean_price = mean(Price, na.rm = TRUE))
+wran_groceries = arrange(wran_groceries, mean_price)
+
+ggplot(wran_groceries, aes(x = mean_price, y = reorder(Store, mean_price))) +
+  geom_col(fill = "lightpink") +
+  labs(
+    title = "Average Price of Products by Store",
+    x = "Average Price ($)",
+    y = "Store",) +
+  theme_minimal()
+
+
+```
+
+This plot shows average product prices for each store. High-end and natural stores like Whole Foods and Wheatsville tend to charge more on average, while large grocery chains and superstores like HEB and Kroger offer lower prices.
+
+
+
+### Part B:
+```{r, fig.height=8, fig.width=8}
+
+p_counts = group_by(groceries, Product)
+p_counts = summarise(p_counts, num_stores = n_distinct(Store))
+p_counts = arrange(p_counts, num_stores)
+
+ggplot(p_counts, aes(x = num_stores, y = reorder(Product, num_stores))) +
+  geom_col(fill = "violet") +
+  labs(
+    title = "Number of Stores Selling Each Product",
+    x = "Number of Stores",
+    y = "Product",) +
+  theme_minimal()
+
+
+```
+
+This plot shows how widely available each product is across stores. Staples like milk and salt are sold in all 16 stores, while specialty products like cereals and tortilla chips appear in far fewer locations.
+
+
+
+### Part C:
+
+```{r}
+price_model = lm(Price ~ Product + Type, data = groceries)
+```
+
+Compared with ordinary grocery stores (like Albertsons, HEB, or Krogers), convenience stores charge somewhere between $0.41 and $0.91 more for the same product.
+
+
+### Part D:
+```{r}
+store_model = lm(Price ~ Product + Store, data = groceries)
+```
+
+Based on the regression model controlling for product, the two stores that charge the lowest prices are WalMart and Fiesta, as they have the most negative coefficients. The two stores that charge the highest prices are Whole Foods and Wheatsville Food Co-Op, as they have the most positive coefficients.
+
+
+
+### Part E:
+Based on the regression model, Central Market has a coefficient of –0.91 versus a coefficient of –0.94 for HEB, indicating that their prices are very similar. This very minor difference shows that Central Market may be more costly because they sell a different mix of products rather than having higher prices for the same products.
+
+
+### Part F: 
+
+```{r}
+groceries$new_income = groceries$Income / 10000
+
+income_model = lm(Price ~ Product + new_income, data = groceries)
+
+
+groceries$z_price = scale(groceries$Price)[, 1]
+groceries$z_new_income = scale(groceries$new_income)[, 1]
+
+sd_model = lm(z_price ~ Product + z_new_income, data = groceries)
+
+
+
+```
+
+The model reveals that ZIP codes with higher incomes are associated with slightly lower product prices, even when comparing the same items. The negative coefficient for standardized income (z_new_income) suggests that customers in wealthier areas tend to pay less, on average, for the same products. A one-standard deviation increase in ZIP code income corresponds to a 0.032 standard deviation decrease in price, indicating a small but measurable relationship between neighborhood income and grocery pricing. While the effect is not statistically significant, it suggests that consumers in lower-income areas may face slightly higher prices for identical products.
+
+
+
+
+
+# Problem 3: Price Elasticity of Demand
+
+
+### A: ZIP codes with a higher percentage of minority residents tend to have more FAIR policies per 100 housing units: **True**
+
+Figure A1 shows a clear positive relationship between the percentage of minority residents and the number of FAIR policies, with the regression line sloping upward. The corresponding regression table (model_A) confirms this pattern: the coefficient for minority is 0.014 and statistically significant (p < 0.001), with a 95% confidence interval ranging from 0.009 to 0.018. Additionally, the model’s R² of 0.52 indicates that over half of the variance in FAIR policy rates can be explained by the percentage of minority residents alone.
+
+
+
+
+### B. The evidence suggests an interaction effect between minority percentage and the age of the housing stock in the way that these two variables are related to the number of FAIR policies in a ZIP code: **Undecided**
+
+While an interaction model was tested in Figure C1 and model_C, it was an interaction between minority percentage and fire risk, not housing age. No regression model reported here includes a minority × age interaction term, nor is there a figure investigating this specific relationship. We thus have no suggestion that housing age does change the interaction between minority percentage and FAIR policy adoption.
+
+
+
+
+### C. The relationship between minority percentage and number of FAIR policies per 100 housing units is stronger in high-fire-risk ZIP codes than in low-fire-risk ZIP codes: **True**
+
+Figure C1 shows distinct regression lines for high-risk and low-risk fire groups, with a clearly steeper slope in high-fire ZIP codes. This graph indicates that the relationship between percentage minority and FAIR policy adoption is more robust in higher-fire regions. Although the interaction term of model_C is not significant, the slope difference remains apparent and is consistent with a more robust relationship in high-fire regions
+
+
+### D. Even without controlling for any other variables, income “explains away” all the association between minority percentage and FAIR policy uptake: **False**
+
+In model_D1, minority percentage is the only regressor of FAIR policy rates, and minority bears a large positive coefficient of 0.014 (p < 0.001). Even after adding income to model_D2, minority's coefficient remains positive and statistically significant (0.010, p = 0.002). This indicates that income does not account away for the relationship between minority percentage and FAIR policy take-up.
+
+
+
+### E. Minority percentage and number of FAIR policies are still associated at the ZIP code level, even after controlling for income, fire risk, and housing age: **True**
+
+Model_E captures all the controls of relevance: income, fire hazard, housing age, and minority percentage. The minority coefficient remains positive (0.008) and significant statistically (p = 0.006) at a confidence level of 95% between 0.003 and 0.014. This implies that even with adjustment for some conceivable confounders, ZIPs with higher minority percentages still show higher degrees of FAIR policy take-up, suggesting persistence of disparities in coverage in the private insurance marketplace.
+
+
+
